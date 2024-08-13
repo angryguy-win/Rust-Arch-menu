@@ -10,6 +10,7 @@ This is a learning project.
 [ ] Add logging / errors
 [ ] Add refactor the program into app, ui, main ect..
 [ ] Add themes
+[ ] Add more
 [ ] Add 
 
 [ ] Add The install scripts
