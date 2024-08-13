@@ -2,6 +2,7 @@
 This is a learning project.
 
 ## Todo
+```
 [ ] Add Distro install
 [ ] Add microcode check
 [ ] Add GPU card check, Quetions
@@ -12,7 +13,7 @@ This is a learning project.
 [ ] Add 
 
 [ ] Add The install scripts
-
+```
 
 # Arch-menu
 
