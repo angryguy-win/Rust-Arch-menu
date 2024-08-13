@@ -1,6 +1,19 @@
 # This is a work in Progress!!!!...
 This is a learning project.
 
+## Todo
+[] Add Distro install
+[] Add microcode check
+[] Add GPU card check, Quetions
+[] Add BTRFS Quetions and setup
+[] Add logging / errors
+[] Add refactor the program into app, ui, main ect..
+[] Add themes
+[] Add 
+
+[] Add The install scripts
+
+
 # Arch-menu
 
 This app was create to give the user a menu writen in rust, 
