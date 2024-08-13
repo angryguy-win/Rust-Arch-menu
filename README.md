@@ -27,6 +27,7 @@ This config file can be used in bash script to install Arch.
 ### Boolean True/false, Question.
 ![image](https://github.com/user-attachments/assets/c4944778-9866-433a-b7d7-4767cfebdbbc)
 
-The configuration file created ->  acrh_config.toml
+## The configuration file created ->  acrh_config.toml
+
 ![image](https://github.com/user-attachments/assets/c20ca85d-1cdd-405c-a396-6bae3ccb8cf5)
 
