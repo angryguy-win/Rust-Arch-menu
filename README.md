@@ -1,4 +1,5 @@
 # This is a work in Progress!!!!...
+This is a learning project.
 
 # Arch-menu
 
