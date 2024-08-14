@@ -9,7 +9,7 @@ This is a learning project.
 [ ] Add BTRFS Quetions and setup
 [ ] Add logging / errors
 [ ] Add refactor the program into app, ui, main ect..
-[ ] Add themes
+[x] Add themes
 [ ] Add more
 [ ] Add 
 
