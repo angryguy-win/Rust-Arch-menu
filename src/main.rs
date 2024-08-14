@@ -35,7 +35,8 @@ struct ArchConfig {
     desktop_environment: String,
     reflector_country: String,
     enable_ssh: bool,
-
+    #[serde(skip)]
+    theme: Theme,
 }
 // Enum to represent different types of questions
 enum QuestionType {
@@ -48,6 +49,53 @@ struct Question {
     prompt: &'static str,
     question_type: QuestionType,
 }
+// Add a theme struct to store the colors for the UI
+#[derive(Clone)]
+struct Theme {
+    background: Color,
+    foreground: Color,
+    highlight: Color,
+    accent: Color,
+    text: Color,
+}
+// Define some preset themes
+impl Theme {
+    fn default() -> Self {
+        Theme {
+            background: Color::Reset,
+            foreground: Color::White,
+            highlight: Color::Yellow,
+            accent: Color::Green,
+            text: Color::Gray,
+        }
+    }
+
+    fn dark() -> Self {
+        Theme {
+            background: Color::Black,
+            foreground: Color::White,
+            highlight: Color::Yellow,
+            accent: Color::Blue,
+            text: Color::Gray,
+        }
+    }
+
+    fn light() -> Self {
+        Theme {
+            background: Color::White,
+            foreground: Color::Black,
+            highlight: Color::Red,
+            accent: Color::Blue,
+            text: Color::DarkGray,
+        }
+    }
+}
+// Implement Default trait for Theme
+impl Default for Theme {
+    fn default() -> Self {
+        Self::default()
+    }
+}
 // =========== MAIN FUNCTION =======================================
 // Main function to set up the terminal and run the application
 fn main() -> Result<(), io::Error> {
@@ -56,7 +104,7 @@ fn main() -> Result<(), io::Error> {
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
+    let mut terminal = Terminal::new(backend)?;   // <-- ???
     // Create app state
     // Initialize the configuration struct
     let mut config = ArchConfig {
@@ -72,6 +120,7 @@ fn main() -> Result<(), io::Error> {
         desktop_environment: String::new(),
         reflector_country: String::new(),
         enable_ssh: false,
+        theme: Theme::default(),    // this should be last
     };
 
     // Run the main application loop
@@ -89,7 +138,7 @@ fn main() -> Result<(), io::Error> {
 }
 // =========== HELPER FUNCTIONS ====================================
 // Helper function to draw the splash screen
-fn draw_splash_screen<B: Backend>(f: &mut Frame<B>) -> io::Result<()> {
+fn draw_splash_screen<B: Backend>(f: &mut Frame<B>, theme: &Theme) -> io::Result<()> {
     // Get the size of the terminal
     let size = f.size();
     let block = Block::default().borders(Borders::ALL);
@@ -114,14 +163,14 @@ fn draw_splash_screen<B: Backend>(f: &mut Frame<B>) -> io::Result<()> {
     for (i, line) in logo_lines.iter().enumerate() {
         let y = vertical_padding + i as u16;
         if y < size.height {
-            let text = Paragraph::new(line.to_string())
-                .style(Style::default().fg(Color::Green))
-                .alignment(Alignment::Left);
+        // In the terminal.draw closure, update color usage:
+        let text = Paragraph::new(line.to_string())
+            .style(Style::default().fg(theme.accent))
+            .alignment(Alignment::Left);
             let area = Rect::new(horizontal_padding, y, logo_width, 1);
             f.render_widget(text, area);
         }
     }
-
     Ok(())
 }
 
@@ -133,7 +182,7 @@ fn run_app<B: ratatui::backend::Backend>(
     ) -> io::Result<()> {
     // Show splash screen
     terminal.draw(|f| {
-        draw_splash_screen(f).expect("Failed to draw splash screen");
+        draw_splash_screen(f, &config.theme).expect("Failed to draw splash screen");
     })?;
     thread::sleep(Duration::from_secs(3));
 
@@ -224,9 +273,7 @@ fn run_app<B: ratatui::backend::Backend>(
     loop {
         // Draw the UI
         terminal.draw(|f| {
-            // Create the layout for the UI
             let size = f.size();
-            // Create the chunks for the layout
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
@@ -237,26 +284,32 @@ fn run_app<B: ratatui::backend::Backend>(
             // Create the main block (border around the entire UI)
             let main_block = Block::default()
                 .title("Arch Linux Installer")
-                .borders(Borders::ALL);
-
-            // Create the inner block (border around the question)
+                .borders(Borders::ALL)
+                .style(Style::default().bg(config.theme.background));
+                
             if current_question < questions.len() {
-            let question = &questions[current_question];
-            let inner_block = Block::default().borders(Borders::ALL).title(question.prompt);
-        
-            // Render the appropriate widget based on the question type
-            match &question.question_type {
+                let question = &questions[current_question];
+                // Create the inner block (border around the question)
+                let inner_block = Block::default()
+                    .borders(Borders::ALL)
+                    .title(question.prompt);
+                    //.style(Style::default().bg(config.theme.background));
+
+                // Render the appropriate widget based on the question type
+                match &question.question_type {
                 // Render the multiple choice question
                 QuestionType::MultipleChoice { options } => {
                     // Add question prompt
                     let question_prompt = Paragraph::new(&*question.prompt)
-                        .style(Style::default().fg(Color::Green))
+                        .style(Style::default().fg(config.theme.accent))
                         .block(Block::default().borders(Borders::NONE));
-                    f.render_widget(question_prompt , chunks[0]);
+                    f.render_widget(question_prompt, chunks[0]);
                     // Adjust the chunks to make room for the question prompt
                     let inner_chunks = Layout::default()
                         .direction(Direction::Vertical)
-                        .constraints([Constraint::Length(3), Constraint::Min(1), Constraint::Length(3)].as_ref())
+                        .constraints([Constraint::Length(3), 
+                            Constraint::Min(1), 
+                            Constraint::Length(3)].as_ref())
                         .split(chunks[0]);
 
                     // Filter and render the list of options
@@ -266,40 +319,46 @@ fn run_app<B: ratatui::backend::Backend>(
                         .collect();
                     // Create the list widget
                     let items: Vec<ListItem> = filtered_options
-                        .iter()
-                        .enumerate()
-                        .map(|(i, &option)| {
-                            let style = if i == selected_option {
-                                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
-                            } else {
-                                Style::default()
-                            };
-                            ListItem::new(Spans::from(vec![Span::styled(option.clone(), style)]))
-                        })
-                        .collect();
+                    .iter()
+                    .enumerate()
+                    .map(|(i, &option)| {
+                        let style = if i == selected_option {
+                            Style::default().fg(config.theme.highlight).add_modifier(Modifier::BOLD)
+                        } else {
+                            Style::default().fg(config.theme.accent)
+                        };
+                        ListItem::new(Spans::from(vec![Span::styled(option.clone(), style)]))
+                    })
+                    .collect();
                     let list = List::new(items)
                         .block(inner_block)
-                        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+                        .highlight_style(Style::default()
+                        .fg(config.theme.highlight)
+                        .add_modifier(Modifier::BOLD))
                         .highlight_symbol("> ");
                     // Render the list of options
                     list_state.select(Some(selected_option));
                     f.render_stateful_widget(list, inner_chunks[1], &mut list_state);
                     // Render filter input
                     let footer = Paragraph::new(Spans::from(vec![
-                        Span::raw("Press Enter to confirm, Arrow keys to navigate, 'q' to quit, Type to filter the choice:"),
-                        Span::styled(&filter, Style::default().fg(Color::Yellow)),
+                        Span::raw("Press Enter to confirm, Arrow keys to navigate, '~' to quit, Type to filter the choice:"),
+                        Span::styled(&filter, Style::default().fg(config.theme.highlight)),
                     ]))
                     // Create the footer widget
-                    .block(Block::default().borders(Borders::ALL));
+                    .block(Block::default()
+                    .borders(Borders::ALL)
+                    .style(Style::default()
+                    .fg(config.theme.foreground)
+                    .bg(config.theme.background)));
                     f.render_widget(footer, chunks[1]);
                 },
                 // Render the free text input
                 QuestionType::FreeText => {
                     let text = vec![
                         Spans::from(vec![
-                            Span::raw(question.prompt),
+                            Span::styled(question.prompt, Style::default().fg(config.theme.highlight)),
                             Span::raw(": "),
-                            Span::styled(&input_value, Style::default().fg(Color::Yellow))
+                            Span::styled(&input_value, Style::default().fg(config.theme.accent))
                         ]),
                     ];
                     // Render body frame
@@ -308,8 +367,8 @@ fn run_app<B: ratatui::backend::Backend>(
                         .wrap(ratatui::widgets::Wrap { trim: true });
                     // Render footer frame
                     let footer = Paragraph::new(Spans::from(vec![
-                        Span::raw("Press Enter to confirm, 'q' to quit: "),
-                        Span::styled(&filter, Style::default().fg(Color::Yellow)),
+                        Span::raw("Press Enter to confirm, '~' to quit: "),
+                        Span::styled(&filter, Style::default().fg(config.theme.accent)),
                     ]))
                     .block(Block::default().borders(Borders::ALL));
                     // Render the main block and footer
@@ -320,7 +379,7 @@ fn run_app<B: ratatui::backend::Backend>(
                 QuestionType::Boolean => {
                     // Add question prompt
                     let question_prompt = Paragraph::new(&*question.prompt)
-                        .style(Style::default().fg(Color::Green))
+                        .style(Style::default().fg(config.theme.accent))
                         .block(Block::default().borders(Borders::NONE));
                     f.render_widget(question_prompt, chunks[0]);
                     // Adjust the chunks to make room for the question prompt
@@ -330,14 +389,15 @@ fn run_app<B: ratatui::backend::Backend>(
                         .split(chunks[0]);
                     // Render the list of options
                     let options = vec!["Yes", "No"];
+                    // Create the list widget
                     let items: Vec<ListItem> = options
                         .iter()
                         .enumerate()
                         .map(|(i, &option)| {
                             let style = if i == selected_option {
-                                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+                                Style::default().fg(config.theme.accent).add_modifier(Modifier::BOLD)
                             } else {
-                                Style::default()
+                                Style::default().fg(config.theme.text)
                             };
                             ListItem::new(Spans::from(vec![Span::styled(option, style)]))
                         })
@@ -345,30 +405,40 @@ fn run_app<B: ratatui::backend::Backend>(
                     // Create the list widget
                     let list = List::new(items)
                         .block(inner_block)
-                        .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+                        .highlight_style(Style::default()
+                        .fg(config.theme.highlight)
+                        .add_modifier(Modifier::BOLD))
                         .highlight_symbol("> ");
                     // Render the list of options
                     list_state.select(Some(selected_option));
                     f.render_stateful_widget(list, inner_chunks[1], &mut list_state);
-                    // Render footer
-                    let footer = Paragraph::new(Spans::from(vec![
-                        Span::raw("Press Enter to confirm, Arrow keys to navigate, 'q' to quit"),
-                    ]))
-                    // Create the footer widget
-                    .block(Block::default().borders(Borders::ALL));
-                    f.render_widget(footer, chunks[1]);
                 }
             }
-            // Render the main block
-            f.render_widget(main_block, size);
-        }
+                    // Render footer
+                    let footer = Paragraph::new(Spans::from(vec![
+                        Span::raw("Press Enter to confirm, Arrow keys to navigate, '~' to quit, '*' to change theme, Type to filter:"),
+                        Span::styled(&filter, Style::default().fg(config.theme.highlight)),
+                    ]))
+                    .block(Block::default().borders(Borders::ALL).style(Style::default().bg(config.theme.background)));
+                    f.render_widget(footer, chunks[1]);
+                }
+                f.render_widget(main_block, size);
         })?;
-
+    
         // Handle key events
         if let Event::Key(key) = event::read()? {
             match key.code {
-                // Handle the 'q' key
-                KeyCode::Char('q') => return Ok(()),
+                // In the key event handling section of run_app
+                KeyCode::Char('*') => {
+                    // Cycle through themes
+                    config.theme = match config.theme.background {
+                        Color::Reset => Theme::dark(),
+                        Color::Black => Theme::light(),
+                        _ => Theme::default(),
+                    };
+                },
+                // Handle the '~' key
+                KeyCode::Char('~') => return Ok(()),
                 KeyCode::Enter => {
                     // Get the selected value based on the current question type
                     let selected_value = match &questions[current_question].question_type {
