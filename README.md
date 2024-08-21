@@ -18,11 +18,11 @@ This is a learning project.
 
 # Arch-menu
 
-This app was create to give the user a menu writen in rust, 
+This app was created to give the user a menu writen in rust, 
 To ask the User quetion's that they would use to install arch.
 All of these quetions are compiled into a arch_config_toml 
 file..
-## Modulels Used:
+## Modules Used:
 ```
 [dependencies]
 ratatui = "0.20.1"
