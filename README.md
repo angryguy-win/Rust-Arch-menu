@@ -20,7 +20,7 @@ This is a learning project.
 
 This app was created to give the user a menu writen in rust, 
 To ask the User quetion's that they would use to install arch.
-All of these quetions are compiled into a arch_config_toml 
+All of these quetions are compiled into a arch_config.toml 
 file..
 ## Modules Used:
 ```
